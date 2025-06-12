@@ -4,12 +4,18 @@ import string
 data = {}
 chars = set(string.ascii_letters)
 
+class Weight:
+    def _init_(self, layer, weight):
+        self.layer = layer
+        self.weight = weight
+
 class NeuralNetwork:
     def __init__(self, weights):
         self.weights = weights
 
     def changeWeight(self, newWeight):
         self.weights = newWeight
+    def 
 
 nn = NeuralNetwork(0.23)
 
@@ -19,7 +25,7 @@ def saveLearntData(newData):
         data[k] = data.get(k, 0) + v
 
 def convertPromptToData(prompt):
-    words = prompt.lower().split()  # simple tokenization
+    words = prompt.lower().split() 
     promptData = {}
     for word in words:
         promptData[word] = promptData.get(word, 0) + 1
@@ -34,6 +40,10 @@ def submitQuery(query):
         saveLearntData(QData)
     else:
         print("It seems that you have not submitted a prompt.")
+
+def createLearningPoint(layer, weight):
+    newPoint = Weight(layer, weight)
+    return newPoint
 
 nn.changeWeight(0.45)
 i = input("> ")
