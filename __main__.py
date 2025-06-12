@@ -4,6 +4,14 @@ import string
 data = {}
 chars = set(string.ascii_letters)
 
+class NueralNetwork:
+  def changeWeight(newWeight):
+    self.weights = newWeight
+  def __init__(self, weights):
+    self.weights = weights
+
+nn = NeuralNetwork(0.23)
+
 def saveLearntData(data):
   d = set(data)
 
