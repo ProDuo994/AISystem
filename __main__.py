@@ -32,7 +32,7 @@ def convertPromptToData(prompt):
     return promptData
 
 
-def submitQuery(query):
+async def submitQuery(query):
     if query:
         print("Analysing Query")
         QData = convertPromptToData(query)
@@ -47,5 +47,5 @@ def createLearningPoint(layer, weight):
 
 nn.changeWeight(0.45)
 i = input("> ")
-submitQuery(i)
+await submitQuery(i)
 print("Accumulated Data:", data)
