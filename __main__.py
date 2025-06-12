@@ -1,11 +1,12 @@
 import numpy as np
 import string
+import asyncio
 
 data = {}
 chars = set(string.ascii_letters)
 
 class Weight:
-    def _init_(self, layer, weight):
+    def __init__(self, layer, weight):  # Fixed constructor
         self.layer = layer
         self.weight = weight
 
@@ -15,7 +16,6 @@ class NeuralNetwork:
 
     def changeWeight(self, newWeight):
         self.weights = newWeight
-    def 
 
 nn = NeuralNetwork(0.23)
 
@@ -25,12 +25,11 @@ def saveLearntData(newData):
         data[k] = data.get(k, 0) + v
 
 def convertPromptToData(prompt):
-    words = prompt.lower().split() 
+    words = prompt.lower().split()
     promptData = {}
     for word in words:
         promptData[word] = promptData.get(word, 0) + 1
     return promptData
-
 
 async def submitQuery(query):
     if query:
@@ -42,10 +41,13 @@ async def submitQuery(query):
         print("It seems that you have not submitted a prompt.")
 
 def createLearningPoint(layer, weight):
-    newPoint = Weight(layer, weight)
-    return newPoint
+    return Weight(layer, weight)
 
 nn.changeWeight(0.45)
-i = input("> ")
-await submitQuery(i)
-print("Accumulated Data:", data)
+
+async def main():
+    i = input("> ")
+    await submitQuery(i)
+    print("Accumulated Data:", data)
+
+asyncio.run(main())
