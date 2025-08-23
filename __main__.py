@@ -6,9 +6,6 @@ import random
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 
-# ------------------------------
-# Memory storage
-# ------------------------------
 data = {}
 conversation_history = []
 
@@ -32,27 +29,43 @@ responses = {
     "joke": ["Why don’t scientists trust atoms? Because they make up everything!"],
 }
 
-# Track used responses to avoid repeats
 used_responses = {intent: [] for intent in responses}
 
+# Word definitions for keyword-based fallback
+word_definitions = {
+    "python": "Python is a programming language that’s great for automation and AI.",
+    "robot": "A robot is a machine capable of carrying out tasks automatically.",
+    "hello": "Hello is a greeting used when meeting someone.",
+    "hi": "Hi is a casual way to greet someone.",
+    "bye": "Bye is a word used to say farewell.",
+    "joke": "A joke is a funny story or statement meant to make people laugh.",
+    "ai": "AI stands for artificial intelligence, machines simulating human intelligence.",
+}
+
 # ------------------------------
-# Save & load learned data
+# File persistence
 # ------------------------------
 def saveToFile(filename="data.json"):
     with open(filename, "w") as f:
-        json.dump({"data": data, "responses": responses}, f)
+        json.dump({
+            "data": data,
+            "responses": responses,
+            "history": conversation_history,
+            "definitions": word_definitions
+        }, f)
 
 def loadFromFile(filename="data.json"):
-    global data, responses, used_responses
+    global data, responses, used_responses, conversation_history, word_definitions
     try:
         with open(filename, "r") as f:
             saved = json.load(f)
             data = saved.get("data", {})
             responses.update(saved.get("responses", {}))
-            # Reset usage tracking when loading
+            conversation_history.extend(saved.get("history", []))
+            word_definitions.update(saved.get("definitions", {}))
             used_responses = {intent: [] for intent in responses}
     except FileNotFoundError:
-        data = {}
+        data, conversation_history = {}, {}
 
 # ------------------------------
 # Machine learning setup
@@ -70,7 +83,6 @@ clf.fit(X_vectors, y_train)
 # Response generation
 # ------------------------------
 def generateNewResponse(intent, query):
-    """Generate a new response if the AI wants to be creative"""
     templates = {
         "greeting": [
             f"Nice to meet you!",
@@ -95,10 +107,9 @@ def generateNewResponse(intent, query):
 
     if intent in templates:
         reply = random.choice(templates[intent])
-        responses[intent].append(reply)  # Save it to memory for future use
+        responses[intent].append(reply)
         return reply
     else:
-        # Fallback: invent something from the query
         reply = f"That’s interesting! You mentioned '{random.choice(query.split())}'. Tell me more."
         responses.setdefault(intent, []).append(reply)
         return reply
@@ -108,13 +119,11 @@ def chooseResponse(intent, query):
         return generateNewResponse(intent, query)
 
     available = [r for r in responses[intent] if r not in used_responses[intent]]
-
     if not available:
         used_responses[intent] = []
         available = responses[intent][:]
 
-    if random.random() < 0.3:  
-        # 30% chance: invent something new
+    if random.random() < 0.3:
         reply = generateNewResponse(intent, query)
     else:
         reply = random.choice(available)
@@ -122,19 +131,58 @@ def chooseResponse(intent, query):
     used_responses[intent].append(reply)
     return reply
 
+def contextAwareFlavor(query):
+    """Adds context awareness by checking last 3 messages"""
+    if not conversation_history:
+        return ""
+    recent_text = " ".join([msg for msg, _ in conversation_history[-3:]])
+    recent_words = set(recent_text.lower().split())
+    if any(word in query.lower().split() for word in recent_words):
+        return " (That connects to what you said earlier!)"
+    return ""
+
+def learnNewDefinition(word):
+    """Ask the user for a definition of an unknown word and return a contextual response"""
+    print(f"🤖 I don't know the word '{word}'. Can you provide a short definition?")
+    definition = input("You: ")
+    word_definitions[word] = definition
+    saveToFile()
+    # Generate a natural response including the definition
+    reply = f"Got it! So '{word}' means: {definition}. Thanks for teaching me!"
+    return reply
+
+def keywordFallback(query):
+    """Generates a fallback using keywords and definitions, or learns new words in context"""
+    words = query.lower().translate(str.maketrans('', '', string.punctuation)).split()
+    known_defs = [f"'{word}' means: {word_definitions[word]}" for word in words if word in word_definitions]
+    
+    if known_defs:
+        return f"Interesting! {random.choice(known_defs)}"
+    
+    unknown_words = [word for word in words if word not in word_definitions]
+    if unknown_words:
+        return learnNewDefinition(unknown_words[0])
+    
+    fallbacks = [
+        "Hmm, I’m not sure what you mean. Can you rephrase?",
+        "I didn’t quite get that. Could you say it differently?",
+        "That’s interesting… can you clarify?",
+        "I’m not certain I understand. Tell me more!"
+    ]
+    return random.choice(fallbacks)
+
 def generateResponse(query):
     X_test = vectorizer.transform([query])
-    predicted_label = clf.predict(X_test)[0]
+    probs = clf.predict_proba(X_test)[0]
+    confidence = max(probs)
+    predicted_label = clf.classes_[np.argmax(probs)]
 
-    reply = chooseResponse(predicted_label, query)
+    if confidence < 0.4:
+        reply = keywordFallback(query)
+    else:
+        reply = chooseResponse(predicted_label, query)
+        reply += contextAwareFlavor(query)
 
-    # Add memory flavor
-    if conversation_history:
-        last_user, last_ai = conversation_history[-1]
-        if any(word in query.lower() for word in last_user.split()):
-            reply += " (That reminds me of earlier!)"
-
-    # Save conversation
     conversation_history.append((query, reply))
     return reply
 
